@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Row, Col, Card, Button, Alert, Spinner, Tab, Tabs } from 'react-bootstrap';
-import { FaUserEdit, FaUserPlus, FaUserMinus, FaBlog, FaUsers, FaUserFriends } from 'react-icons/fa';
+import { FaUserPlus, FaUserMinus } from 'react-icons/fa';
 import BlogCard from '../components/BlogCard';
 import Pagination from '../components/Pagination';
 import AuthContext from '../context/AuthContext';
@@ -202,11 +202,6 @@ const Profile = () => {
                 )}
               </Button>
             )}
-            {isAuthenticated && user.id === parseInt(id) && (
-              <Button variant="outline-primary" as={Link} to="/edit-profile">
-                <FaUserEdit className="me-1" /> Edit Profile
-              </Button>
-            )}
           </Col>
         </Row>
         
@@ -214,25 +209,19 @@ const Profile = () => {
           <Col md={4} className="mb-3 mb-md-0">
             <div className="stats-card">
               <div className="stats-number">{profile.blogCount}</div>
-              <div className="stats-label">
-                <FaBlog className="me-1" /> Blogs
-              </div>
+              <div className="stats-label">Blogs</div>
             </div>
           </Col>
           <Col md={4} className="mb-3 mb-md-0">
             <div className="stats-card">
               <div className="stats-number">{profile.followerCount}</div>
-              <div className="stats-label">
-                <FaUsers className="me-1" /> Followers
-              </div>
+              <div className="stats-label">Followers</div>
             </div>
           </Col>
           <Col md={4}>
             <div className="stats-card">
               <div className="stats-number">{profile.followingCount}</div>
-              <div className="stats-label">
-                <FaUserFriends className="me-1" /> Following
-              </div>
+              <div className="stats-label">Following</div>
             </div>
           </Col>
         </Row>

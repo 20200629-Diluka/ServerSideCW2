@@ -151,7 +151,7 @@ const Search = () => {
                 <Form.Control
                   type="text"
                   placeholder={searchType === 'country' 
-                    ? 'Enter country name (e.g., Japan, Italy)' 
+                    ? 'Enter country name' 
                     : 'Enter username to search'
                   }
                   value={searchQuery}

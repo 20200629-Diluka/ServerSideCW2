@@ -72,7 +72,7 @@ const Register = () => {
     <div className="d-flex justify-content-center my-5">
       <Card className="auth-form">
         <Card.Body>
-          <h2 className="text-center mb-4">Create an Account</h2>
+          <h2 className="text-center mb-4">Register</h2>
           
           {error && <Alert variant="danger">{error}</Alert>}
           

@@ -25,17 +25,20 @@ const Navigation = () => {
             <Nav.Link as={Link} to="/search">Search</Nav.Link>
             {isAuthenticated && (
               <>
-                <Nav.Link as={Link} to="/create-blog">Create Blog</Nav.Link>
-                <Nav.Link as={Link} to="/following">Following Feed</Nav.Link>
+                <Nav.Link as={Link} to="/create-blog">Blog</Nav.Link>
+                <Nav.Link as={Link} to="/following">Feed</Nav.Link>
+                <Nav.Link as={Link} to={`/profile/${user.id}`}>
+                  Profile
+                </Nav.Link>
               </>
             )}
           </Nav>
           <Nav>
             {isAuthenticated ? (
               <>
-                <Nav.Link as={Link} to={`/profile/${user.id}`}>
-                  Profile
-                </Nav.Link>
+                <Navbar.Text className="me-2 text-white">
+                  {user.username}
+                </Navbar.Text>
                 <Button variant="outline-light" onClick={handleLogout}>
                   Logout
                 </Button>

@@ -1,8 +1,5 @@
 import axios from 'axios';
 
-// Set default base URL for API requests
-// axios.defaults.baseURL = 'http://localhost:5000/api';
-
 // Configure axios to send the authentication token with every request
 axios.interceptors.request.use(
   (config) => {
