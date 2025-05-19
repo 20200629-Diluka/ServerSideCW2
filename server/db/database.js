@@ -10,7 +10,7 @@ if (!fs.existsSync(dbDir)) {
 
 // Create database connection
 const dbPath = path.join(dbDir, 'traveltales.db');
-const db = new Database(dbPath, { verbose: console.log });
+const db = new Database(dbPath);
 
 // Initialize database with tables
 const initDatabase = () => {

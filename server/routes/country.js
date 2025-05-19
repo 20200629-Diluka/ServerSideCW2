@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/:code', async (req, res) => {
     try {
-        const response = await fetch(`https://restcountries.com/v3.1/alpha/${req.params.code}?fields=name,capital,flags,currencies,population,region,subregion,languages,borders,maps`);
+        const response = await fetch(`https://restcountries.com/v3.1/alpha/${req.params.code}?fields=name,capital,flags,currencies`);
         
         if (!response.ok) {
             return res.status(404).json({
@@ -78,13 +78,7 @@ router.get('/:code', async (req, res) => {
             capital: countryData.capital ? countryData.capital[0] : 'N/A',
             flag: countryData.flags.png,
             flagAlt: countryData.flags.alt || `Flag of ${countryData.name.common}`,
-            currencies,
-            population: countryData.population,
-            region: countryData.region,
-            subregion: countryData.subregion,
-            languages,
-            borders: countryData.borders || [],
-            maps: countryData.maps
+            currencies
         };
 
         res.json({
