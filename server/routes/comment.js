@@ -22,60 +22,44 @@ router.post('/', auth, (req, res) => {
 
     try {
         // Check if blog post exists
-        db.get('SELECT * FROM blog_posts WHERE id = ?', [blog_id], (err, blog) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).json({
-                    success: false,
-                    message: 'Server error'
-                });
-            }
+        const blogStmt = db.prepare('SELECT * FROM blog_posts WHERE id = ?');
+        const blog = blogStmt.get(blog_id);
 
-            if (!blog) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Blog post not found'
-                });
-            }
+        if (!blog) {
+            return res.status(404).json({
+                success: false,
+                message: 'Blog post not found'
+            });
+        }
 
-            // Add comment
-            db.run(
-                'INSERT INTO comments (blog_id, user_id, content) VALUES (?, ?, ?)',
-                [blog_id, user_id, content],
-                function (err) {
-                    if (err) {
-                        console.error(err);
-                        return res.status(500).json({
-                            success: false,
-                            message: 'Server error'
-                        });
-                    }
+        // Add comment
+        const insertStmt = db.prepare(
+            'INSERT INTO comments (blog_id, user_id, content) VALUES (?, ?, ?)'
+        );
+        const result = insertStmt.run(blog_id, user_id, content);
 
-                    // Get the created comment with user info
-                    db.get(
-                        `SELECT c.*, u.username 
-                         FROM comments c
-                         JOIN users u ON c.user_id = u.id
-                         WHERE c.id = ?`,
-                        [this.lastID],
-                        (err, comment) => {
-                            if (err) {
-                                console.error(err);
-                                return res.status(500).json({
-                                    success: false,
-                                    message: 'Server error'
-                                });
-                            }
+        const commentId = result.lastInsertRowid;
+        if (!commentId) {
+            return res.status(500).json({
+                success: false,
+                message: 'Server error'
+            });
+        }
 
-                            res.status(201).json({
-                                success: true,
-                                message: 'Comment added successfully',
-                                comment
-                            });
-                        }
-                    );
-                }
-            );
+        // Get the created comment with user info
+        const commentQuery = `
+            SELECT c.*, u.username 
+            FROM comments c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.id = ?
+        `;
+        const commentStmt = db.prepare(commentQuery);
+        const comment = commentStmt.get(commentId);
+
+        res.status(201).json({
+            success: true,
+            message: 'Comment added successfully',
+            comment
         });
     } catch (err) {
         console.error(err);
@@ -93,28 +77,20 @@ router.post('/', auth, (req, res) => {
  */
 router.get('/blog/:id', (req, res) => {
     try {
-        db.all(
-            `SELECT c.*, u.username 
-             FROM comments c
-             JOIN users u ON c.user_id = u.id
-             WHERE c.blog_id = ?
-             ORDER BY c.created_at DESC`,
-            [req.params.id],
-            (err, comments) => {
-                if (err) {
-                    console.error(err);
-                    return res.status(500).json({
-                        success: false,
-                        message: 'Server error'
-                    });
-                }
+        const commentQuery = `
+            SELECT c.*, u.username 
+            FROM comments c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.blog_id = ?
+            ORDER BY c.created_at DESC
+        `;
+        const commentsStmt = db.prepare(commentQuery);
+        const comments = commentsStmt.all(req.params.id);
 
-                res.json({
-                    success: true,
-                    comments
-                });
-            }
-        );
+        res.json({
+            success: true,
+            comments
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({
@@ -132,57 +108,38 @@ router.get('/blog/:id', (req, res) => {
 router.delete('/:id', auth, (req, res) => {
     try {
         // Check if comment exists and belongs to the user
-        db.get(
-            'SELECT * FROM comments WHERE id = ?',
-            [req.params.id],
-            (err, comment) => {
-                if (err) {
-                    console.error(err);
-                    return res.status(500).json({
-                        success: false,
-                        message: 'Server error'
-                    });
-                }
+        const commentStmt = db.prepare('SELECT * FROM comments WHERE id = ?');
+        const comment = commentStmt.get(req.params.id);
 
-                if (!comment) {
-                    return res.status(404).json({
-                        success: false,
-                        message: 'Comment not found'
-                    });
-                }
+        if (!comment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Comment not found'
+            });
+        }
 
-                // Check if user is comment owner or blog post owner
-                if (comment.user_id !== req.user.id) {
-                    // Check if user owns the blog post
-                    db.get(
-                        'SELECT * FROM blog_posts WHERE id = ?',
-                        [comment.blog_id],
-                        (err, blog) => {
-                            if (err) {
-                                console.error(err);
-                                return res.status(500).json({
-                                    success: false,
-                                    message: 'Server error'
-                                });
-                            }
+        // Check if user is comment owner or blog post owner
+        if (comment.user_id !== req.user.id) {
+            // Check if user owns the blog post
+            const blogStmt = db.prepare('SELECT * FROM blog_posts WHERE id = ?');
+            const blog = blogStmt.get(comment.blog_id);
 
-                            if (!blog || blog.user_id !== req.user.id) {
-                                return res.status(403).json({
-                                    success: false,
-                                    message: 'Not authorized to delete this comment'
-                                });
-                            }
-
-                            // Delete comment
-                            deleteComment(req.params.id, res);
-                        }
-                    );
-                } else {
-                    // User is comment owner, delete comment
-                    deleteComment(req.params.id, res);
-                }
+            if (!blog || blog.user_id !== req.user.id) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Not authorized to delete this comment'
+                });
             }
-        );
+        }
+
+        // Delete comment
+        const deleteStmt = db.prepare('DELETE FROM comments WHERE id = ?');
+        deleteStmt.run(req.params.id);
+
+        res.json({
+            success: true,
+            message: 'Comment deleted successfully'
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({
@@ -191,27 +148,5 @@ router.delete('/:id', auth, (req, res) => {
         });
     }
 });
-
-// Helper function to delete a comment
-function deleteComment(commentId, res) {
-    db.run(
-        'DELETE FROM comments WHERE id = ?',
-        [commentId],
-        function (err) {
-            if (err) {
-                console.error(err);
-                return res.status(500).json({
-                    success: false,
-                    message: 'Server error'
-                });
-            }
-
-            res.json({
-                success: true,
-                message: 'Comment deleted successfully'
-            });
-        }
-    );
-}
 
 module.exports = router; 

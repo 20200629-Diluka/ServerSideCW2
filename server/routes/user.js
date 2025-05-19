@@ -10,81 +10,45 @@ const auth = require('../middleware/auth');
  */
 router.get('/:id', (req, res) => {
     try {
-        db.get(
-            'SELECT id, username, email, created_at FROM users WHERE id = ?',
-            [req.params.id],
-            (err, user) => {
-                if (err) {
-                    console.error(err);
-                    return res.status(500).json({
-                        success: false,
-                        message: 'Server error'
-                    });
-                }
-
-                if (!user) {
-                    return res.status(404).json({
-                        success: false,
-                        message: 'User not found'
-                    });
-                }
-
-                // Get follower count
-                db.get(
-                    'SELECT COUNT(*) as followerCount FROM follows WHERE following_id = ?',
-                    [req.params.id],
-                    (err, followerResult) => {
-                        if (err) {
-                            console.error(err);
-                            return res.status(500).json({
-                                success: false,
-                                message: 'Server error'
-                            });
-                        }
-
-                        // Get following count
-                        db.get(
-                            'SELECT COUNT(*) as followingCount FROM follows WHERE follower_id = ?',
-                            [req.params.id],
-                            (err, followingResult) => {
-                                if (err) {
-                                    console.error(err);
-                                    return res.status(500).json({
-                                        success: false,
-                                        message: 'Server error'
-                                    });
-                                }
-
-                                // Get blog count
-                                db.get(
-                                    'SELECT COUNT(*) as blogCount FROM blog_posts WHERE user_id = ?',
-                                    [req.params.id],
-                                    (err, blogResult) => {
-                                        if (err) {
-                                            console.error(err);
-                                            return res.status(500).json({
-                                                success: false,
-                                                message: 'Server error'
-                                            });
-                                        }
-
-                                        res.json({
-                                            success: true,
-                                            user: {
-                                                ...user,
-                                                followerCount: followerResult.followerCount,
-                                                followingCount: followingResult.followingCount,
-                                                blogCount: blogResult.blogCount
-                                            }
-                                        });
-                                    }
-                                );
-                            }
-                        );
-                    }
-                );
-            }
+        const userStmt = db.prepare(
+            'SELECT id, username, email, created_at FROM users WHERE id = ?'
         );
+        const user = userStmt.get(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Get follower count
+        const followerStmt = db.prepare(
+            'SELECT COUNT(*) as followerCount FROM follows WHERE following_id = ?'
+        );
+        const followerResult = followerStmt.get(req.params.id);
+
+        // Get following count
+        const followingStmt = db.prepare(
+            'SELECT COUNT(*) as followingCount FROM follows WHERE follower_id = ?'
+        );
+        const followingResult = followingStmt.get(req.params.id);
+
+        // Get blog count
+        const blogStmt = db.prepare(
+            'SELECT COUNT(*) as blogCount FROM blog_posts WHERE user_id = ?'
+        );
+        const blogResult = blogStmt.get(req.params.id);
+
+        res.json({
+            success: true,
+            user: {
+                ...user,
+                followerCount: followerResult.followerCount,
+                followingCount: followingResult.followingCount,
+                blogCount: blogResult.blogCount
+            }
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({
@@ -113,64 +77,39 @@ router.post('/follow/:id', auth, (req, res) => {
 
     try {
         // Check if user to follow exists
-        db.get('SELECT * FROM users WHERE id = ?', [followingId], (err, user) => {
-            if (err) {
-                console.error(err);
-                return res.status(500).json({
-                    success: false,
-                    message: 'Server error'
-                });
-            }
+        const userStmt = db.prepare('SELECT * FROM users WHERE id = ?');
+        const user = userStmt.get(followingId);
 
-            if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'User to follow not found'
-                });
-            }
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User to follow not found'
+            });
+        }
 
-            // Check if already following
-            db.get(
-                'SELECT * FROM follows WHERE follower_id = ? AND following_id = ?',
-                [followerId, followingId],
-                (err, follow) => {
-                    if (err) {
-                        console.error(err);
-                        return res.status(500).json({
-                            success: false,
-                            message: 'Server error'
-                        });
-                    }
+        // Check if already following
+        const followStmt = db.prepare(
+            'SELECT * FROM follows WHERE follower_id = ? AND following_id = ?'
+        );
+        const follow = followStmt.get(followerId, followingId);
 
-                    if (follow) {
-                        return res.status(400).json({
-                            success: false,
-                            message: 'Already following this user'
-                        });
-                    }
+        if (follow) {
+            return res.status(400).json({
+                success: false,
+                message: 'Already following this user'
+            });
+        }
 
-                    // Create follow relationship
-                    db.run(
-                        'INSERT INTO follows (follower_id, following_id) VALUES (?, ?)',
-                        [followerId, followingId],
-                        function (err) {
-                            if (err) {
-                                console.error(err);
-                                return res.status(500).json({
-                                    success: false,
-                                    message: 'Server error'
-                                });
-                            }
+        // Create follow relationship
+        const insertStmt = db.prepare(
+            'INSERT INTO follows (follower_id, following_id) VALUES (?, ?)'
+        );
+        const result = insertStmt.run(followerId, followingId);
 
-                            res.json({
-                                success: true,
-                                message: 'User followed successfully',
-                                followId: this.lastID
-                            });
-                        }
-                    );
-                }
-            );
+        res.json({
+            success: true,
+            message: 'User followed successfully',
+            followId: result.lastInsertRowid
         });
     } catch (err) {
         console.error(err);
@@ -192,46 +131,28 @@ router.delete('/unfollow/:id', auth, (req, res) => {
 
     try {
         // Check if following relationship exists
-        db.get(
-            'SELECT * FROM follows WHERE follower_id = ? AND following_id = ?',
-            [followerId, followingId],
-            (err, follow) => {
-                if (err) {
-                    console.error(err);
-                    return res.status(500).json({
-                        success: false,
-                        message: 'Server error'
-                    });
-                }
-
-                if (!follow) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'You are not following this user'
-                    });
-                }
-
-                // Delete follow relationship
-                db.run(
-                    'DELETE FROM follows WHERE follower_id = ? AND following_id = ?',
-                    [followerId, followingId],
-                    function (err) {
-                        if (err) {
-                            console.error(err);
-                            return res.status(500).json({
-                                success: false,
-                                message: 'Server error'
-                            });
-                        }
-
-                        res.json({
-                            success: true,
-                            message: 'User unfollowed successfully'
-                        });
-                    }
-                );
-            }
+        const followStmt = db.prepare(
+            'SELECT * FROM follows WHERE follower_id = ? AND following_id = ?'
         );
+        const follow = followStmt.get(followerId, followingId);
+
+        if (!follow) {
+            return res.status(400).json({
+                success: false,
+                message: 'You are not following this user'
+            });
+        }
+
+        // Delete follow relationship
+        const deleteStmt = db.prepare(
+            'DELETE FROM follows WHERE follower_id = ? AND following_id = ?'
+        );
+        deleteStmt.run(followerId, followingId);
+
+        res.json({
+            success: true,
+            message: 'User unfollowed successfully'
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({
@@ -248,27 +169,19 @@ router.delete('/unfollow/:id', auth, (req, res) => {
  */
 router.get('/:id/followers', (req, res) => {
     try {
-        db.all(
-            `SELECT u.id, u.username, u.email, u.created_at 
-             FROM follows f
-             JOIN users u ON f.follower_id = u.id
-             WHERE f.following_id = ?`,
-            [req.params.id],
-            (err, followers) => {
-                if (err) {
-                    console.error(err);
-                    return res.status(500).json({
-                        success: false,
-                        message: 'Server error'
-                    });
-                }
+        const followersQuery = `
+            SELECT u.id, u.username, u.email, u.created_at 
+            FROM follows f
+            JOIN users u ON f.follower_id = u.id
+            WHERE f.following_id = ?
+        `;
+        const followersStmt = db.prepare(followersQuery);
+        const followers = followersStmt.all(req.params.id);
 
-                res.json({
-                    success: true,
-                    followers
-                });
-            }
-        );
+        res.json({
+            success: true,
+            followers
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({
@@ -285,27 +198,19 @@ router.get('/:id/followers', (req, res) => {
  */
 router.get('/:id/following', (req, res) => {
     try {
-        db.all(
-            `SELECT u.id, u.username, u.email, u.created_at 
-             FROM follows f
-             JOIN users u ON f.following_id = u.id
-             WHERE f.follower_id = ?`,
-            [req.params.id],
-            (err, following) => {
-                if (err) {
-                    console.error(err);
-                    return res.status(500).json({
-                        success: false,
-                        message: 'Server error'
-                    });
-                }
+        const followingQuery = `
+            SELECT u.id, u.username, u.email, u.created_at 
+            FROM follows f
+            JOIN users u ON f.following_id = u.id
+            WHERE f.follower_id = ?
+        `;
+        const followingStmt = db.prepare(followingQuery);
+        const following = followingStmt.all(req.params.id);
 
-                res.json({
-                    success: true,
-                    following
-                });
-            }
-        );
+        res.json({
+            success: true,
+            following
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({

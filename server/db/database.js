@@ -1,4 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
@@ -9,68 +9,67 @@ if (!fs.existsSync(dbDir)) {
 }
 
 // Create database connection
-const db = new sqlite3.Database(path.join(dbDir, 'traveltales.db'));
+const dbPath = path.join(dbDir, 'traveltales.db');
+const db = new Database(dbPath, { verbose: console.log });
 
 // Initialize database with tables
 const initDatabase = () => {
-    db.serialize(() => {
-        // Users table
-        db.run(`CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )`);
+    // Users table
+    db.exec(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
 
-        // Blog posts table
-        db.run(`CREATE TABLE IF NOT EXISTS blog_posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            country_name TEXT NOT NULL,
-            visit_date DATE NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-        )`);
+    // Blog posts table
+    db.exec(`CREATE TABLE IF NOT EXISTS blog_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        country_name TEXT NOT NULL,
+        visit_date DATE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )`);
 
-        // Comments table
-        db.run(`CREATE TABLE IF NOT EXISTS comments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            blog_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (blog_id) REFERENCES blog_posts (id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-        )`);
+    // Comments table
+    db.exec(`CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        blog_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (blog_id) REFERENCES blog_posts (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )`);
 
-        // Likes table
-        db.run(`CREATE TABLE IF NOT EXISTS likes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            blog_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            is_like BOOLEAN NOT NULL, -- true for like, false for dislike
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (blog_id) REFERENCES blog_posts (id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-            UNIQUE(blog_id, user_id)
-        )`);
+    // Likes table
+    db.exec(`CREATE TABLE IF NOT EXISTS likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        blog_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        is_like BOOLEAN NOT NULL, -- true for like, false for dislike
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (blog_id) REFERENCES blog_posts (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        UNIQUE(blog_id, user_id)
+    )`);
 
-        // Follows table
-        db.run(`CREATE TABLE IF NOT EXISTS follows (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            follower_id INTEGER NOT NULL,
-            following_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
-            FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE,
-            UNIQUE(follower_id, following_id)
-        )`);
+    // Follows table
+    db.exec(`CREATE TABLE IF NOT EXISTS follows (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        follower_id INTEGER NOT NULL,
+        following_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (follower_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (following_id) REFERENCES users (id) ON DELETE CASCADE,
+        UNIQUE(follower_id, following_id)
+    )`);
 
-        console.log('Database initialized successfully');
-    });
+    console.log('Database initialized successfully');
 };
 
 module.exports = {
